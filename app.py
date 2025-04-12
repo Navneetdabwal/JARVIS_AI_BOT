@@ -1,14 +1,25 @@
 
 import os
-from telegram import Update
-from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, ContextTypes, filters
 import openai
+from flask import Flask, request
+from telegram import Update
+from telegram.ext import Application, CommandHandler, MessageHandler, ContextTypes, filters
+
+app = Flask(__name__)
 
 TELEGRAM_TOKEN = os.environ["TELEGRAM_TOKEN"]
 OPENAI_API_KEY = os.environ["OPENAI_API_KEY"]
+PORT = int(os.environ.get("PORT", 10000))
+
 openai.api_key = OPENAI_API_KEY
 
-async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+application = Application.builder().token(TELEGRAM_TOKEN).build()
+
+@app.route("/")
+def home():
+    return "Jarvis Bot is Running!"
+
+async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
         "Hey Developer!\n\n"
         "I am Jarvis — your personal AI Coding Assistant.\n"
@@ -16,7 +27,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         "Developed by\n𓆩 Navneet Dabwal 𓆪"
     )
 
-async def explain(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+async def explain(update: Update, context: ContextTypes.DEFAULT_TYPE):
     code = update.message.text
     response = openai.ChatCompletion.create(
         model="gpt-3.5-turbo",
@@ -27,7 +38,7 @@ async def explain(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     )
     await update.message.reply_text(response['choices'][0]['message']['content'])
 
-async def optimize(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+async def optimize(update: Update, context: ContextTypes.DEFAULT_TYPE):
     code = update.message.text
     response = openai.ChatCompletion.create(
         model="gpt-3.5-turbo",
@@ -38,7 +49,7 @@ async def optimize(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     )
     await update.message.reply_text(response['choices'][0]['message']['content'])
 
-async def fix(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+async def fix(update: Update, context: ContextTypes.DEFAULT_TYPE):
     code = update.message.text
     response = openai.ChatCompletion.create(
         model="gpt-3.5-turbo",
@@ -49,14 +60,15 @@ async def fix(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     )
     await update.message.reply_text(response['choices'][0]['message']['content'])
 
-def main():
-    app = ApplicationBuilder().token(TELEGRAM_TOKEN).build()
-    app.add_handler(CommandHandler("start", start))
-    app.add_handler(CommandHandler("optimize", optimize))
-    app.add_handler(CommandHandler("fix", fix))
-    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, explain))
-    app.run_polling()
+def start_bot():
+    application.add_handler(CommandHandler("start", start))
+    application.add_handler(CommandHandler("optimize", optimize))
+    application.add_handler(CommandHandler("fix", fix))
+    application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, explain))
+    application.run_polling()
 
 if __name__ == "__main__":
-    main()
+    import threading
+    threading.Thread(target=start_bot).start()
+    app.run(host="0.0.0.0", port=PORT)
     
