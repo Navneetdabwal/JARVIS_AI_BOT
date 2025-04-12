@@ -1,65 +1,74 @@
+
 import os
-import asyncio
-import threading
+import openai
 from flask import Flask, request
 from telegram import Update
-from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes
-import openai
-from dotenv import load_dotenv
+from telegram.ext import Application, CommandHandler, MessageHandler, ContextTypes, filters
 
-# Load environment variables
-load_dotenv()
-TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")
-OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+app = Flask(__name__)
 
-# OpenAI setup
+TELEGRAM_TOKEN = os.environ["TELEGRAM_TOKEN"]
+OPENAI_API_KEY = os.environ["OPENAI_API_KEY"]
+PORT = int(os.environ.get("PORT", 10000))
+
 openai.api_key = OPENAI_API_KEY
 
-# Flask app
-flask_app = Flask(__name__)
+application = Application.builder().token(TELEGRAM_TOKEN).build()
 
-@flask_app.route("/", methods=["GET"])
+@app.route("/")
 def home():
     return "Jarvis Bot is Running!"
 
-# Telegram bot commands
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    name = "Navneet Dabwal"
-    fancy_name = "𝙉𝙖𝙫𝙣𝙚𝙚𝙩 𝘿𝙖𝙗𝙬𝙖𝙡"
-    msg = f"Hello, I am Jarvis — your Dev Assistant Bot!\n\nDeveloped by: *{fancy_name}*"
-    await update.message.reply_text(msg, parse_mode="Markdown")
+    await update.message.reply_text(
+        "Hey Developer!\n\n"
+        "I am Jarvis — your personal AI Coding Assistant.\n"
+        "Send me any code to explain, or use /optimize or /fix.\n\n"
+        "Developed by\n𓆩 Navneet Dabwal 𓆪"
+    )
 
 async def explain(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if not context.args:
-        await update.message.reply_text("Please provide code to explain.")
-        return
+    code = update.message.text
+    response = openai.ChatCompletion.create(
+        model="gpt-3.5-turbo",
+        messages=[
+            {"role": "system", "content": "You are a helpful code explainer."},
+            {"role": "user", "content": f"Explain this code:\n{code}"}
+        ]
+    )
+    await update.message.reply_text(response['choices'][0]['message']['content'])
 
-    code = " ".join(context.args)
-    prompt = f"Explain this code:\n\n{code}"
+async def optimize(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    code = update.message.text
+    response = openai.ChatCompletion.create(
+        model="gpt-3.5-turbo",
+        messages=[
+            {"role": "system", "content": "You are a code optimizer."},
+            {"role": "user", "content": f"Optimize this code:\n{code}"}
+        ]
+    )
+    await update.message.reply_text(response['choices'][0]['message']['content'])
 
-    try:
-        response = openai.ChatCompletion.create(
-            model="gpt-3.5-turbo",
-            messages=[{"role": "user", "content": prompt}]
-        )
-        reply = response.choices[0].message.content.strip()
-        await update.message.reply_text(reply)
-    except Exception as e:
-        await update.message.reply_text("Something went wrong.")
-
-# Telegram application
-async def run_bot():
-    app = ApplicationBuilder().token(TELEGRAM_TOKEN).build()
-    app.add_handler(CommandHandler("start", start))
-    app.add_handler(CommandHandler("explain", explain))
-    await app.run_polling()
+async def fix(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    code = update.message.text
+    response = openai.ChatCompletion.create(
+        model="gpt-3.5-turbo",
+        messages=[
+            {"role": "system", "content": "You are a helpful assistant that fixes bugs in code."},
+            {"role": "user", "content": f"Fix the bugs in this code:\n{code}"}
+        ]
+    )
+    await update.message.reply_text(response['choices'][0]['message']['content'])
 
 def start_bot():
-    asyncio.run(run_bot())
+    application.add_handler(CommandHandler("start", start))
+    application.add_handler(CommandHandler("optimize", optimize))
+    application.add_handler(CommandHandler("fix", fix))
+    application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, explain))
+    application.run_polling()
 
-# Thread to run Telegram bot
-threading.Thread(target=start_bot).start()
-
-# Run Flask app (Render looks for port)
 if __name__ == "__main__":
-    flask_app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
+    import threading
+    threading.Thread(target=start_bot).start()
+    app.run(host="0.0.0.0", port=PORT)
+    
