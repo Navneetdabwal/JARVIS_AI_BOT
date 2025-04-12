@@ -22,8 +22,7 @@ async def explain(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         model="gpt-3.5-turbo",
         messages=[
             {"role": "system", "content": "You are a helpful code explainer."},
-            {"role": "user", "content": f"Explain this code:
-{code}"}
+            {"role": "user", "content": f"Explain this code:\n{code}"}
         ]
     )
     await update.message.reply_text(response['choices'][0]['message']['content'])
@@ -34,8 +33,7 @@ async def optimize(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         model="gpt-3.5-turbo",
         messages=[
             {"role": "system", "content": "You are a code optimizer."},
-            {"role": "user", "content": f"Optimize this code:
-{code}"}
+            {"role": "user", "content": f"Optimize this code:\n{code}"}
         ]
     )
     await update.message.reply_text(response['choices'][0]['message']['content'])
@@ -46,8 +44,7 @@ async def fix(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         model="gpt-3.5-turbo",
         messages=[
             {"role": "system", "content": "You are a helpful assistant that fixes bugs in code."},
-            {"role": "user", "content": f"Fix the bugs in this code:
-{code}"}
+            {"role": "user", "content": f"Fix the bugs in this code:\n{code}"}
         ]
     )
     await update.message.reply_text(response['choices'][0]['message']['content'])
@@ -62,3 +59,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+    
