@@ -1,74 +1,54 @@
-
 import os
-import openai
+import logging
 from flask import Flask, request
 from telegram import Update
-from telegram.ext import Application, CommandHandler, MessageHandler, ContextTypes, filters
+from telegram.ext import Application, CommandHandler, ContextTypes
+
+# Enable logging
+logging.basicConfig(format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.INFO)
+
+TOKEN = os.environ.get("BOT_TOKEN")
+if not TOKEN:
+    raise ValueError("BOT_TOKEN environment variable not set!")
 
 app = Flask(__name__)
 
-TELEGRAM_TOKEN = os.environ["TELEGRAM_TOKEN"]
-OPENAI_API_KEY = os.environ["OPENAI_API_KEY"]
-PORT = int(os.environ.get("PORT", 10000))
+application = Application.builder().token(TOKEN).build()
 
-openai.api_key = OPENAI_API_KEY
-
-application = Application.builder().token(TELEGRAM_TOKEN).build()
-
-@app.route("/")
-def home():
-    return "Jarvis Bot is Running!"
-
+# /start handler
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text(
-        "Hey Developer!\n\n"
-        "I am Jarvis — your personal AI Coding Assistant.\n"
-        "Send me any code to explain, or use /optimize or /fix.\n\n"
-        "Developed by\n𓆩 Navneet Dabwal 𓆪"
+    name_stylish = "『 𝗡𝗮𝘃𝗻𝗲𝗲𝘁 𝗗𝗮𝗯𝘄𝗮𝗹 』"
+    msg = (
+        f"✨ Welcome to *JARVIS AI Assistant Bot* ✨\n\n"
+        f"Developer: *{name_stylish}*\n"
+        f"Bot: `@JARVIS_AI_NK_BOT`\n"
+        f"Powered by: *Python × Flask × Telegram API*\n\n"
+        f"_Type /help to see what I can do._"
     )
+    await update.message.reply_markdown(msg)
 
-async def explain(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    code = update.message.text
-    response = openai.ChatCompletion.create(
-        model="gpt-3.5-turbo",
-        messages=[
-            {"role": "system", "content": "You are a helpful code explainer."},
-            {"role": "user", "content": f"Explain this code:\n{code}"}
-        ]
-    )
-    await update.message.reply_text(response['choices'][0]['message']['content'])
+# /help handler
+async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await update.message.reply_text("Available Commands:\n/start - Introduction\n/help - List of commands")
 
-async def optimize(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    code = update.message.text
-    response = openai.ChatCompletion.create(
-        model="gpt-3.5-turbo",
-        messages=[
-            {"role": "system", "content": "You are a code optimizer."},
-            {"role": "user", "content": f"Optimize this code:\n{code}"}
-        ]
-    )
-    await update.message.reply_text(response['choices'][0]['message']['content'])
+# Register handlers
+application.add_handler(CommandHandler("start", start))
+application.add_handler(CommandHandler("help", help_command))
 
-async def fix(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    code = update.message.text
-    response = openai.ChatCompletion.create(
-        model="gpt-3.5-turbo",
-        messages=[
-            {"role": "system", "content": "You are a helpful assistant that fixes bugs in code."},
-            {"role": "user", "content": f"Fix the bugs in this code:\n{code}"}
-        ]
-    )
-    await update.message.reply_text(response['choices'][0]['message']['content'])
+@app.route("/", methods=["GET", "POST"])
+def webhook():
+    if request.method == "POST":
+        update = Update.de_json(request.get_json(force=True), application.bot)
+        application.update_queue.put_nowait(update)
+        return "OK"
+    return "Bot is running!"
 
-def start_bot():
-    application.add_handler(CommandHandler("start", start))
-    application.add_handler(CommandHandler("optimize", optimize))
-    application.add_handler(CommandHandler("fix", fix))
-    application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, explain))
-    application.run_polling()
+async def set_webhook():
+    webhook_url = os.environ.get("RENDER_EXTERNAL_URL")
+    if webhook_url:
+        await application.bot.set_webhook(f"{webhook_url}/")
 
 if __name__ == "__main__":
-    import threading
-    threading.Thread(target=start_bot).start()
-    app.run(host="0.0.0.0", port=PORT)
-    
+    import asyncio
+    asyncio.run(set_webhook())
+    app.run(host="0.0.0.0", port=10000)
