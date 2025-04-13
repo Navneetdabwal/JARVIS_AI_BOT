@@ -1,52 +1,49 @@
-from flask import Flask, request
 import os
-import telegram
-from telegram.ext import Application, CommandHandler, ContextTypes
-from telegram.ext import MessageHandler, filters
+import logging
+from flask import Flask, request
 from telegram import Update
+from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes
 
-TOKEN = os.environ.get("BOT_TOKEN")
-WEBHOOK_URL = os.environ.get("RENDER_EXTERNAL_URL")
+# Logging setup
+logging.basicConfig(
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    level=logging.INFO
+)
 
-if not TOKEN:
+BOT_TOKEN = os.getenv("BOT_TOKEN")
+if not BOT_TOKEN:
     raise ValueError("BOT_TOKEN environment variable not set!")
 
-bot = telegram.Bot(token=TOKEN)
 app = Flask(__name__)
+application = ApplicationBuilder().token(BOT_TOKEN).build()
 
-application = Application.builder().token(TOKEN).build()
-
-# Stylish Start command
+# /start command
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text(
-        "╭━━━╮╱╱╱╱╱╱╱╱╭╮\n┃╭━╮┃╱╱╱╱╱╱╱╱┃┃\n┃╰━━┳━━┳━━┳━━┫┃╭┳━━┳━╮\n╰━━╮┃┃━┫╭╮┃╭╮┃╰╯┫┃━┫╭╯\n┃╰━╯┃┃━┫╰╯┃╰╯┃╭╮┫┃━┫┃\n╰━━━┻━━┻━╮┣━╮┻╯╰┻━━┻╯\n╱╱╱╱╱╱╱╭━╯┃\n╱╱╱╱╱╱╱╰━━╯\n\n🤖 I'm *JARVIS Dev Assistant Bot* created by *Navneet Dabwal*!\n\nSend /help to see what I can do.",
-        parse_mode="Markdown"
+    msg = (
+        "╭━━━━━━━[ 𝗝𝗔𝗥𝗩𝗜𝗦 ]━━━━━━━╮\n"
+        "│   Your Personal AI Assistant\n"
+        "│\n"
+        "│   Developed by: 𝗡𝗔𝗩𝗡𝗘𝗘𝗧 𝗗𝗔𝗕𝗪𝗔𝗟\n"
+        "│   Telegram: @JARVIS_AI_NK_BOT\n"
+        "│   Status: ✅ Online\n"
+        "╰━━━━━━━━━━━━━━━━━━━━━━╯\n\n"
+        "Use /help to explore my powers!"
     )
-
-# Help Command
-async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text("Available Commands:\n/start - Welcome Message\n/help - This Message")
-
-# Default echo message
-async def echo(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text("I am alive and ready! Try /start or /help.")
+    await update.message.reply_text(msg)
 
 application.add_handler(CommandHandler("start", start))
-application.add_handler(CommandHandler("help", help_command))
-application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, echo))
 
-@app.route("/", methods=["GET", "POST"])
-def webhook():
-    if request.method == "POST":
-        update = telegram.Update.de_json(request.get_json(force=True), bot)
-        application.update_queue.put_nowait(update)
-        return "ok"
-    return "Bot is alive!"
+@app.route("/")
+def home():
+    return "Bot is live and healthy!"
 
 @app.before_first_request
-def set_webhook():
-    webhook_url = f"{WEBHOOK_URL}/"
-    bot.set_webhook(url=webhook_url)
+def activate_bot():
+    import threading
+    def run_bot():
+        application.run_polling()
+    threading.Thread(target=run_bot).start()
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 10000)))
+    port = int(os.environ.get("PORT", 10000))
+    app.run(host="0.0.0.0", port=port)
